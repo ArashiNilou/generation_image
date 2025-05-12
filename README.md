@@ -13,6 +13,8 @@ Les images générées seront sauvegardées dans le dossier `images` par défaut
 
 ## Personnalisation
 
+- Créer et configurer votre fichier .env
+
 Vous pouvez modifier les scripts pour adapter le système à vos besoins spécifiques:
 
 - Ajuster les prompts système dans `web_extractor.py` et `prompt_generator.py`
