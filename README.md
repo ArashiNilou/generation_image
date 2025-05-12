@@ -14,13 +14,13 @@ Les images générées seront sauvegardées dans le dossier `images` par défaut
 ## Personnalisation
 
 - Créer et configurer votre fichier .env avec les info suivantes:
-OPENAI_API_KEY
-AZURE_OPENAI_API_KEY
-AZURE_OPENAI_ENDPOINT
-AZURE_OPENAI_API_VERSION
-AZURE_OPENAI_GPT_DEPLOYMENT
-#API html to markdown créé paar Melaine:
-HTML_TO_MARKDOWN_API_TOKEN
+- OPENAI_API_KEY
+- AZURE_OPENAI_API_KEY
+- AZURE_OPENAI_ENDPOINT
+- AZURE_OPENAI_API_VERSION
+- AZURE_OPENAI_GPT_DEPLOYMENT
+- API html to markdown créé paar Melaine:
+- HTML_TO_MARKDOWN_API_TOKEN
 
 Vous pouvez modifier les scripts pour adapter le système à vos besoins spécifiques:
 
