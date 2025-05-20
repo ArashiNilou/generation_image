@@ -26,6 +26,7 @@ def generate_image_prompts(business_axes):
             5. Être optimisé pour une utilisation professionnelle et marketing
             6. Étre en anglais
             7. Le texte dans la publicité doit etre obligatoirement present ,Centré et etre en FRANCAIS
+            8. Le logo de l'entreprise doit être présent dans la publicité et doit être en haut à gauche
             Format de réponse: Un seul paragraphe de prompt optimisé, sans introduction ni conclusion.
             """
             
