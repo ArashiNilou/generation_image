@@ -9,129 +9,247 @@ import os
 
 def extract_logo(url):
     """
-    Extrait le logo d'un site web en utilisant plusieurs méthodes
+    Extrait le logo principal d'un site web en utilisant plusieurs méthodes
     Retourne un dictionnaire avec les informations du logo ou None si aucun logo n'est trouvé
     """
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Méthode 1: Recherche par attributs communs des logos
+        # Extraire le domaine pour des comparaisons plus tard
+        domain_parts = urllib.parse.urlparse(url).netloc.split('.')
+        domain = domain_parts[-2] if len(domain_parts) >= 2 else domain_parts[0]
+        
+        # Méthode 1: Priorité aux logos explicitement marqués
         logo_candidates = []
         
-        # Chercher dans les balises img avec des mots-clés communs dans le chemin ou les attributs
-        logo_patterns = [r'logo', r'brand', r'header-image', r'site-icon']
+        # 1.1 Rechercher les éléments portant explicitement 'logo' dans les attributs
+        for element in soup.select('[class*="logo"], [id*="logo"]'):
+            # Chercher une image à l'intérieur
+            logo_img = element.find('img')
+            if logo_img and logo_img.get('src'):
+                logo_candidates.append({
+                    'img': logo_img,
+                    'score': 100,  # Score très élevé pour les logos explicites
+                    'source': 'explicit_logo_class'
+                })
+            # Si pas d'image, regarder si c'est un lien avec une image
+            elif element.name == 'a' and element.find('img'):
+                logo_img = element.find('img')
+                if logo_img and logo_img.get('src'):
+                    logo_candidates.append({
+                        'img': logo_img,
+                        'score': 90,
+                        'source': 'logo_link_img'
+                    })
+        
+        # 1.2 Rechercher les images avec logo dans les attributs ou le chemin
+        logo_patterns = [r'logo', r'brand', r'header-image', r'site-logo', r'main-logo']
         for img in soup.find_all('img'):
             img_src = img.get('src', '')
             img_alt = img.get('alt', '')
             img_class = ' '.join(img.get('class', []))
             img_id = img.get('id', '')
             
-            # Vérifier si l'une des caractéristiques de l'image contient un pattern de logo
+            # Calculer un score initial pour cette image
+            score = 0
+            source = ''
+            
+            # Vérifier si l'image porte explicitement le mot "logo"
             for pattern in logo_patterns:
-                if (re.search(pattern, img_src, re.IGNORECASE) or 
-                    re.search(pattern, img_alt, re.IGNORECASE) or 
-                    re.search(pattern, img_class, re.IGNORECASE) or
-                    re.search(pattern, img_id, re.IGNORECASE)):
-                    logo_candidates.append(img)
+                if re.search(pattern, img_src, re.IGNORECASE):
+                    score += 50
+                    source = 'src_contains_logo'
                     break
+                elif re.search(pattern, img_alt, re.IGNORECASE):
+                    score += 40
+                    source = 'alt_contains_logo'
+                    break
+                elif re.search(pattern, img_class, re.IGNORECASE):
+                    score += 45
+                    source = 'class_contains_logo'
+                    break
+                elif re.search(pattern, img_id, re.IGNORECASE):
+                    score += 45
+                    source = 'id_contains_logo'
+                    break
+            
+            # Si un score a été attribué, ajouter aux candidats
+            if score > 0:
+                logo_candidates.append({
+                    'img': img,
+                    'score': score,
+                    'source': source
+                })
         
-        # Méthode 2: Vérifier les zones communes où se trouvent les logos
-        header_logo = soup.select_one('header img, .header img, #header img')
-        if header_logo:
-            logo_candidates.append(header_logo)
+        # Méthode 2: Emplacement stratégique - les logos sont généralement en haut de page
+        # 2.1 Logo dans l'en-tête
+        header_elements = soup.select('header, .header, #header')
+        for header in header_elements:
+            # Chercher d'abord les éléments avec "logo" dans la classe/id dans l'en-tête
+            logo_elements = header.select('[class*="logo"], [id*="logo"]')
+            for logo_element in logo_elements:
+                logo_img = logo_element.find('img')
+                if logo_img and logo_img.get('src'):
+                    logo_candidates.append({
+                        'img': logo_img,
+                        'score': 85,
+                        'source': 'header_logo_element'
+                    })
             
-        navbar_logo = soup.select_one('nav img, .navbar img, .nav img')
-        if navbar_logo:
-            logo_candidates.append(navbar_logo)
+            # Sinon chercher toutes les images dans l'en-tête, mais avec un score plus faible
+            if not logo_elements:
+                for img in header.find_all('img', limit=3):  # Limiter aux 3 premières images
+                    if img.get('src'):
+                        # Vérifier si c'est probablement un logo
+                        score = 35
+                        is_small_icon = False
+                        
+                        # Éviter les petites icônes
+                        if img.get('width') and img.get('height'):
+                            try:
+                                width = int(img['width'])
+                                height = int(img['height'])
+                                if width < 20 or height < 20:
+                                    is_small_icon = True
+                                    score -= 20
+                            except ValueError:
+                                pass
+                        
+                        if not is_small_icon:
+                            logo_candidates.append({
+                                'img': img,
+                                'score': score,
+                                'source': 'header_img'
+                            })
         
-        # Méthode 3: Chercher la première image dans l'en-tête
-        header = soup.find(['header', 'div'], {'class': ['header', 'navbar', 'nav', 'top']})
-        if header:
-            first_img = header.find('img')
-            if first_img:
-                logo_candidates.append(first_img)
+        # 2.2 Logo dans la barre de navigation
+        navbar_elements = soup.select('nav, .navbar, .nav, #navbar, #nav')
+        for navbar in navbar_elements:
+            for img in navbar.find_all('img', limit=2):  # Limiter pour éviter les icônes de navigation
+                if img.get('src'):
+                    score = 30
+                    # Bonus si l'image est dans un lien vers la page d'accueil
+                    parent_a = img.find_parent('a')
+                    if parent_a and parent_a.get('href'):
+                        href = parent_a.get('href')
+                        if href == '/' or href == '#' or href == url or href.endswith('index.html'):
+                            score += 20
+                    
+                    logo_candidates.append({
+                        'img': img,
+                        'score': score,
+                        'source': 'navbar_img'
+                    })
+        
+        # 2.3 Première image visible en haut de page (souvent le logo)
+        top_images = soup.select('body > img, body > div > img, body > header > img, body > div > header > img')
+        if top_images:
+            logo_candidates.append({
+                'img': top_images[0],
+                'score': 25,
+                'source': 'top_image'
+            })
             
-        # Si des candidats ont été trouvés, sélectionner le meilleur
-        if logo_candidates:
-            # Dédupliquer les candidats
-            unique_candidates = []
-            seen_srcs = set()
-            for img in logo_candidates:
-                src = img.get('src', '')
-                if src and src not in seen_srcs:
-                    seen_srcs.add(src)
-                    unique_candidates.append(img)
+        # Méthode 3: Contenu de l'image
+        for candidate in list(logo_candidates):  # Copie de la liste pour pouvoir modifier
+            img = candidate['img']
+            img_alt = img.get('alt', '').lower()
+            img_src = img.get('src', '').lower()
             
-            # Prioritiser les images avec la meilleure résolution ou taille appropriée pour un logo
-            best_candidate = max(unique_candidates, key=lambda img: score_logo_candidate(img, url))
+            # Bonus si l'image contient le nom du domaine
+            if domain.lower() in img_alt or domain.lower() in img_src:
+                candidate['score'] += 15
+                candidate['source'] += '_with_domain'
             
-            # Convertir le chemin relatif en absolu si nécessaire
-            src = best_candidate.get('src')
-            if src:
-                if not src.startswith(('http://', 'https://', 'data:')):
-                    src = urllib.parse.urljoin(url, src)
-                
-                return {
-                    'type': 'img',
-                    'src': src,
-                    'alt': best_candidate.get('alt', 'Logo'),
-                    'width': best_candidate.get('width'),
-                    'height': best_candidate.get('height')
-                }
+            # Pénalité pour les images qui sont probablement des bannières ou des produits
+            if 'banner' in img_src or 'banner' in img_alt:
+                candidate['score'] -= 30
+            if 'product' in img_src or 'product' in img_alt:
+                candidate['score'] -= 25
+            if 'slider' in img_src or 'slider' in img_alt:
+                candidate['score'] -= 20
             
-        # Méthode alternative: rechercher dans les métadonnées
+            # Vérifier les dimensions pour éviter les bannières et favoriser les logos typiques
+            if img.get('width') and img.get('height'):
+                try:
+                    width = int(img['width'])
+                    height = int(img['height'])
+                    
+                    # Logos typiques: proportionnés et de taille moyenne
+                    if 30 <= width <= 300 and 30 <= height <= 150:
+                        candidate['score'] += 15
+                    elif width > 500 or height > 300:
+                        candidate['score'] -= 25  # Probablement une bannière
+                    elif (width < 20 or height < 20) and 'icon' not in candidate['source']:
+                        candidate['score'] -= 15  # Probablement une icône de navigation
+                    
+                    # Les logos ont souvent un ratio largeur/hauteur entre 1:1 et 4:1
+                    if width > 0 and height > 0:
+                        ratio = width / height
+                        if 0.8 <= ratio <= 4.0:
+                            candidate['score'] += 10
+                        elif ratio > 6.0:  # Très allongé, probablement une bannière
+                            candidate['score'] -= 15
+                except ValueError:
+                    pass
+        
+        # Méthode 4: Support des favicons ou logos dans les métadonnées comme dernier recours
         meta_logo = soup.select_one('link[rel*="icon"], link[rel="apple-touch-icon"]')
         if meta_logo and meta_logo.get('href'):
-            href = meta_logo.get('href')
-            if not href.startswith(('http://', 'https://')):
-                href = urllib.parse.urljoin(url, href)
-            return {
-                'type': 'icon',
-                'src': href,
-                'alt': 'Site Icon'
-            }
+            logo_candidates.append({
+                'img': meta_logo,
+                'score': 5,  # Score faible car c'est un dernier recours
+                'source': 'favicon',
+                'is_favicon': True
+            })
+        
+        # Si des candidats ont été trouvés, sélectionner le meilleur
+        if logo_candidates:
+            # Trier par score décroissant
+            sorted_candidates = sorted(logo_candidates, key=lambda x: x['score'], reverse=True)
+            
+            # Prendre le meilleur candidat
+            best_candidate = sorted_candidates[0]
+            
+            # Traiter le cas spécial des favicons
+            if best_candidate.get('is_favicon'):
+                href = best_candidate['img'].get('href')
+                if not href.startswith(('http://', 'https://')):
+                    href = urllib.parse.urljoin(url, href)
+                return {
+                    'type': 'icon',
+                    'src': href,
+                    'alt': 'Site Icon',
+                    'score': best_candidate['score'],
+                    'source': best_candidate['source']
+                }
+            else:
+                # Candidate normal (img)
+                img = best_candidate['img']
+                src = img.get('src')
+                if src:
+                    # Convertir le chemin relatif en absolu si nécessaire
+                    if not src.startswith(('http://', 'https://', 'data:')):
+                        src = urllib.parse.urljoin(url, src)
+                    
+                    return {
+                        'type': 'img',
+                        'src': src,
+                        'alt': img.get('alt', 'Logo'),
+                        'width': img.get('width'),
+                        'height': img.get('height'),
+                        'score': best_candidate['score'],
+                        'source': best_candidate['source']
+                    }
             
         return None
     
     except Exception as e:
         print(f"Erreur lors de l'extraction du logo: {e}")
         return None
-
-def score_logo_candidate(img, site_url):
-    """Attribue un score au candidat logo basé sur différents facteurs"""
-    score = 0
-    
-    # Les logos sont généralement en haut de page
-    if img.find_parent(['header', 'nav']):
-        score += 20
-    
-    # Les logos contiennent souvent le nom du site
-    domain = urllib.parse.urlparse(site_url).netloc.split('.')[-2]
-    img_alt = img.get('alt', '').lower()
-    img_src = img.get('src', '').lower()
-    if domain.lower() in img_alt or domain.lower() in img_src:
-        score += 15
-    
-    # Pénaliser les images trop grandes (banners) ou trop petites (icônes de navigation)
-    if img.get('width') and img.get('height'):
-        try:
-            width = int(img['width'])
-            height = int(img['height'])
-            
-            # Logos typiques: entre 30x30 et 300x200
-            if 30 <= width <= 300 and 30 <= height <= 200:
-                score += 10
-            elif width > 500 or height > 500:
-                score -= 10
-            elif width < 20 or height < 20:
-                score -= 5
-        except ValueError:
-            pass
-            
-    return score
 
 def download_logo(logo_info, output_folder="logos"):
     """
@@ -151,7 +269,7 @@ def download_logo(logo_info, output_folder="logos"):
         
         # Télécharger l'image
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(logo_url, headers=headers, timeout=10)
+        response = requests.get(logo_url, headers=headers, timeout=20)
         response.raise_for_status()
         
         # Déterminer le format de l'image
@@ -185,7 +303,7 @@ def extract_main_images(url, max_images=5):
     """
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -238,7 +356,7 @@ def extract_color_palette(url):
     """
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         

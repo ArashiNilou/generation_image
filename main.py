@@ -2,15 +2,16 @@ import os
 import argparse
 from dotenv import load_dotenv
 from web_extractor import analyze_website_for_business_axes
-from prompt_generator import generate_image_prompts
-from generator_image import generate_multiple_images
+from business_analyzer import generate_business_description, extract_website_visual_identity
+from enhanced_image_generator import generate_multiple_images_with_assets
+from business_analyzer import generate_ad_prompts_with_visual_identity
 
 def main():
     # Charger les variables d'environnement
     load_dotenv()
     
     # Configurer l'analyseur d'arguments
-    parser = argparse.ArgumentParser(description="Générateur d'images basé sur l'analyse d'un site web client")
+    parser = argparse.ArgumentParser(description="Générateur d'images publicitaires avancé basé sur l'analyse d'un site web")
     parser.add_argument("--url", type=str, help="URL du site web client à analyser")
     parser.add_argument("--output", type=str, default="images", help="Dossier de sortie pour les images générées")
     
@@ -22,19 +23,35 @@ def main():
     
     print(f"\n1. ANALYSE DU SITE WEB: {args.url}")
     print("---------------------------------------------------")
-    print("Extraction du contenu et conversion en Markdown...")
+    print("Extraction du contenu et analyse...")
+    
     # Analyser le site web pour identifier les axes d'activité
     business_axes = analyze_website_for_business_axes(args.url)
     
-    print("\n2. AXES D'ACTIVITÉ IDENTIFIÉS:")
+    # Générer une description concise de l'entreprise
+    print("\nGénération de la description de l'entreprise...")
+    business_description = generate_business_description(args.url)
+    
+    # Extraire l'identité visuelle (logo, images, couleurs)
+    print("\nExtraction de l'identité visuelle (logo, images, couleurs)...")
+    visual_identity = extract_website_visual_identity(args.url)
+    
+    print("\n2. INFORMATIONS EXTRAITES:")
+    print("---------------------------------------------------")
+    print(f"Description de l'entreprise: {business_description}")
+    print(f"\nLogo extrait: {'Oui - ' + visual_identity['logo']['path'] if visual_identity['logo']['path'] else 'Non'}")
+    print(f"Palette de couleurs: {', '.join(visual_identity['colors'][:3]) if visual_identity['colors'] else 'Non disponible'}")
+    print(f"Images principales: {len(visual_identity['main_images']) if visual_identity['main_images'] else 0} images extraites")
+    
+    print("\n3. AXES D'ACTIVITÉ IDENTIFIÉS:")
     print("---------------------------------------------------")
     for i, axis in enumerate(business_axes, 1):
         print(f"{i}. {axis}")
     
-    print("\n3. GÉNÉRATION DES PROMPTS")
+    print("\n4. GÉNÉRATION DES PROMPTS AVEC IDENTITÉ VISUELLE")
     print("---------------------------------------------------")
-    # Générer des prompts pour les images basés sur les axes d'activité
-    image_prompts = generate_image_prompts(business_axes)
+    # Générer des prompts pour les images en intégrant l'identité visuelle
+    image_prompts = generate_ad_prompts_with_visual_identity(business_axes, visual_identity)
     
     # Afficher les prompts générés
     for i, prompt in enumerate(image_prompts, 1):
@@ -46,12 +63,12 @@ def main():
     # Demander confirmation à l'utilisateur
     confirmation = input("\nVoulez-vous générer les images avec ces prompts? (O/n): ")
     if confirmation.lower() in ["", "o", "oui", "y", "yes"]:
-        print("\n4. GÉNÉRATION DES IMAGES")
+        print("\n5. GÉNÉRATION DES IMAGES AVEC LOGO")
         print("---------------------------------------------------")
-        # Générer les images
-        image_files = generate_multiple_images(image_prompts, args.output)
+        # Générer les images en intégrant le logo et les couleurs
+        image_files = generate_multiple_images_with_assets(image_prompts, visual_identity, args.output)
         
-        print("\n5. RÉSUMÉ")
+        print("\n6. RÉSUMÉ")
         print("---------------------------------------------------")
         if image_files:
             print(f"{len(image_files)} images ont été générées dans le dossier '{args.output}':")
@@ -61,6 +78,13 @@ def main():
             print("Aucune image n'a été générée. Vérifiez les erreurs ci-dessus.")
     else:
         print("Génération d'images annulée.")
+    
+    # Afficher les informations pour l'interface utilisateur
+    print("\n7. INFORMATIONS POUR L'INTERFACE UTILISATEUR")
+    print("---------------------------------------------------")
+    print(f"Description de l'entreprise pour affichage: {business_description}")
+    if visual_identity['logo']['path']:
+        print(f"Chemin du logo pour affichage: {visual_identity['logo']['path']}")
 
 if __name__ == "__main__":
     main()

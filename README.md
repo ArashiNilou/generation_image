@@ -1,32 +1,127 @@
-# Générateur d'Images basé sur l'Analyse de Site Web
+# IA Générateur de Publicités Automatisé
 
-Ce projet analyse automatiquement un site web d'entreprise, identifie ses 4 principaux axes d'activité, génère des prompts pertinents, puis crée des images correspondantes à l'aide d'OpenAI gpt-image-1.
+Un outil d'analyse de sites web et de génération automatique de publicités personnalisées intégrant l'identité visuelle de l'entreprise.
 
+## Description du projet
 
-. Le système analyse le site web pour identifier les 4 axes principaux d'activité
-. Pour chaque axe, un prompt détaillé est généré pour créer une image pertinente
-. Les prompts sont présentés à l'utilisateur pour validation
-. Après confirmation, les images sont générées et sauvegardées localement
+Ce projet est un système automatisé qui:
+1. Analyse un site web d'entreprise pour comprendre ses activités
+2. Extrait son identité visuelle (logo, couleurs, images)
+3. Identifie les principaux axes d'activité
+4. Génère une description concise de l'entreprise
+5. Crée des publicités ciblées personnalisées avec le logo intégré
 
+Le système utilise les technologies d'IA avancées (OpenAI GPT-4o et DALL-E) pour analyser le contenu et générer des publicités professionnelles adaptées à chaque aspect de l'activité de l'entreprise.
 
-Les images générées seront sauvegardées dans le dossier `images` par défaut.
+## Fonctionnalités
 
-## Personnalisation
+- **Analyse automatique de sites web**: Extraction et analyse du contenu textuel et visuel
+- **Extraction intelligente de logo**: Détection et récupération automatique du logo de l'entreprise
+- **Analyse de l'identité visuelle**: Détermination des couleurs principales du site
+- **Identification des axes d'activité**: Détection des 4 principaux domaines d'activité
+- **Génération de description d'entreprise**: Création d'un texte concis expliquant l'activité
+- **Création de prompts optimisés**: Génération de directives précises pour la création d'images
+- **Génération d'images publicitaires**: Production de visuels professionnels intégrant le logo
 
-- Créer et configurer votre fichier .env avec les info suivantes:
-- OPENAI_API_KEY
-- AZURE_OPENAI_API_KEY
-- AZURE_OPENAI_ENDPOINT
-- AZURE_OPENAI_API_VERSION
-- AZURE_OPENAI_GPT_DEPLOYMENT
-- API html to markdown créé paar Melaine:
-- HTML_TO_MARKDOWN_API_TOKEN
+## Prérequis
 
-Vous pouvez modifier les scripts pour adapter le système à vos besoins spécifiques:
+- Python 3.8+
+- Compte OpenAI avec clé API (ou compte Azure OpenAI)
+- API HTML to Markdown (token d'accès requis)
 
-- Ajuster les prompts système dans `web_extractor.py` et `prompt_generator.py`
-- Modifier les paramètres de génération d'images dans `generator_image.py`
-- Changer le format ou le style des images générées
+## Installation
 
+1. Clonez ce dépôt:
+```bash
+git clone https://github.com/votre-nom/ia-generateur-publicites.git
+cd ia-generateur-publicites
+```
 
- Pour les sites web complexes, essayez d'ajuster les paramètres d'extraction dans `web_extractor.py`
+2. Installez les dépendances:
+```bash
+pip install -r requirements.txt
+```
+
+3. Créez un fichier `.env` à la racine du projet avec les variables suivantes:
+```
+# OpenAI API (obligatoire)
+OPENAI_API_KEY=votre_cle_api_openai
+
+# HTML to Markdown API (obligatoire)
+HTML_TO_MARKDOWN_API_TOKEN=votre_token_api_markdown
+
+# Azure OpenAI (optionnel - si vous utilisez Azure au lieu d'OpenAI)
+AZURE_OPENAI_API_KEY=votre_cle_api_azure
+AZURE_OPENAI_ENDPOINT=votre_endpoint_azure
+AZURE_OPENAI_API_VERSION=votre_version_api
+AZURE_OPENAI_DEPLOYMENT_GPT=votre_nom_deployment
+```
+
+## Utilisation
+
+### Exécution basique
+
+```bash
+python main_enhanced.py --url https://www.exemple.fr --output images
+```
+
+Options:
+- `--url`: URL du site web à analyser (obligatoire)
+- `--output`: Dossier de sortie pour les images générées (par défaut: "images")
+
+### Processus d'exécution
+
+1. **Analyse du site web**: Extraction et conversion du contenu en Markdown
+2. **Identification des axes d'activité**: Détection des principales activités de l'entreprise
+3. **Génération de la description**: Création d'un texte concis décrivant l'entreprise
+4. **Extraction de l'identité visuelle**: Récupération du logo et des couleurs principales
+5. **Génération des prompts**: Création de directives pour chaque axe d'activité
+6. **Création des images publicitaires**: Génération d'images avec intégration du logo
+7. **Affichage des résultats**: Présentation des images générées et du récapitulatif
+
+## Structure des fichiers
+
+```
+.
+├── main_enhanced.py        # Script principal d'exécution
+├── business_analyzer.py    # Analyse des activités et génération de descriptions
+├── logo_extractor.py       # Extraction de logos et d'identité visuelle
+├── enhanced_image_generator.py  # Génération d'images avec intégration de logo
+├── web_extractor.py        # Extraction du contenu des sites web
+├── html_to_markdown.py     # Conversion HTML en Markdown
+├── config_azure_openai.py  # Configuration pour Azure OpenAI
+└── requirements.txt        # Dépendances du projet
+```
+
+## Exemples de sortie
+
+### Description d'entreprise
+```
+ExempleEntreprise est une agence de marketing digital spécialisée dans l'optimisation SEO, le développement web et la gestion des réseaux sociaux pour les PME.
+```
+
+### Images générées
+Le système génère des images publicitaires pour chaque axe d'activité identifié, avec le logo de l'entreprise intégré dans le coin supérieur gauche.
+
+## Limitations
+
+- L'analyse est limitée au contenu textuel et aux éléments visuels accessibles publiquement
+- La qualité de l'extraction du logo dépend de la structure du site web
+- Les sites web avec des protections anti-scraping peuvent ne pas fonctionner correctement
+- L'extraction fonctionne mieux sur des sites avec une structure HTML standard
+
+## Dépannage
+
+### Problèmes courants
+
+1. **Erreur d'API OpenAI**
+   - Vérifiez que votre clé API est valide et dispose de crédits suffisants
+   - Assurez-vous que la variable d'environnement OPENAI_API_KEY est correctement définie
+
+2. **Échec de l'extraction du logo**
+   - Essayez avec un autre site web pour vérifier si le problème est spécifique au site
+   - Consultez les journaux pour identifier le point d'échec dans la détection
+
+3. **Problèmes avec l'API HTML to Markdown**
+   - Vérifiez la validité de votre token d'API
+   - Assurez-vous que l'API est en ligne et accessible
